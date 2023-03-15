@@ -32,7 +32,7 @@ namespace FxCore.Services
 
             try
             {
-                result = client.GetAsync(url).GetAwaiter().GetResult(); //Service returns latest rates if no rates for given date
+                result = await client.GetAsync(url); //CBAR service returns latest rates if no rates for given date
             }
             catch (Exception ex)
             {
