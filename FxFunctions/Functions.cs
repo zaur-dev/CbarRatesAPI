@@ -34,13 +34,13 @@ namespace FxFunctions
         {
             var cbarRates = await _cbarService.GetRates(DateOnly.FromDateTime(DateTime.Now));
 
-            if (_dailyFxRepo.Any(DateTime.Now.Date))
+            if (await _dailyFxRepo.AnyAsync(DateTime.Now.Date))
             {
-                var latestDoc = _dailyFxRepo.GetLatestDocument();
+                var latestDoc = await _dailyFxRepo.GetLatestDocumentAsync();
 
                 if (cbarRates.Date != latestDoc.Date || cbarRates.CbarDate != latestDoc.CbarDate)
                 {
-                    _dailyFxRepo.CreateOrUpdate(cbarRates);
+                    await _dailyFxRepo.CreateOrUpdateAsync(cbarRates);
                     logger.LogInformation($"Updating rates...");
                 }
                 else
@@ -51,7 +51,7 @@ namespace FxFunctions
             else
             {
                 logger.LogInformation($"No rates for today");
-                _dailyFxRepo.CreateOrUpdate(cbarRates);
+                await _dailyFxRepo.CreateOrUpdateAsync(cbarRates);
                 logger.LogInformation($"Updating rates...");
             }
 
@@ -59,20 +59,20 @@ namespace FxFunctions
         }
 
         [FunctionName("GetLatestRates")]
-        public async Task<ActionResult<DailyFx>> GetLatestRates([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "latest")] HttpRequest req,
+        public async Task<ActionResult<DailyFx>> GetLatestRates([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "get/latest")] HttpRequest req,
                                                                ILogger logger)
         {
-            return _dailyFxRepo.GetLatestDocument();
+            return await _dailyFxRepo.GetLatestDocumentAsync();
         }
 
         [FunctionName("GetRatesToDate")]
-        public async Task<ActionResult<DailyFx>> GetRatesToDate([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "{date}")] HttpRequest req,
+        public async Task<ActionResult<DailyFx>> GetRatesToDate([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "get/{date}")] HttpRequest req,
                                                               string date,
                                                               ILogger logger)
         {
             if (DateTime.TryParseExact(date, "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime parsedDate))
             {
-                return _dailyFxRepo.GetByDate(parsedDate);
+                return await _dailyFxRepo.GetByDateAsync(parsedDate) ?? new ActionResult<DailyFx>(new NotFoundObjectResult($"Rates for {parsedDate.Date} not found"));
             }
             else
             {
@@ -101,7 +101,14 @@ namespace FxFunctions
             {
                 if (amountIsParsedSuccessfully)
                 {
-                    return _converter.ConvertAsync(from.ToUpper(), to.ToUpper(), parsedAmount, parsedDate);
+                    if (await _dailyFxRepo.AnyAsync(parsedDate))
+                    {
+                        return _converter.ConvertAsync(from.ToUpper(), to.ToUpper(), parsedAmount, parsedDate);
+                    }
+                    else
+                    {
+                        return new NotFoundObjectResult($"Rates for {parsedDate.Date} not found");
+                    }
                 }
                 else
                 {
@@ -118,7 +125,7 @@ namespace FxFunctions
         public async Task<IActionResult> UpdateRates([HttpTrigger(AuthorizationLevel.Admin, "get", Route = "update")] HttpRequest req,
                                                                          ILogger logger)
         {
-            _updater.UpdateRates();
+            await _updater.UpdateRatesAsync();
 
             return new OkObjectResult("Latest rates loaded");
         }
@@ -135,12 +142,12 @@ namespace FxFunctions
                                                                      out DateTime parsedStartDate);
             if (startDateParsedSuccessfully)
             {
-                _updater.UpdateRates(parsedStartDate);
+                await _updater.UpdateRatesAsync(parsedStartDate);
                 return new OkObjectResult($"Rates starting from {startDate} loaded");
             }
             else
             {
-                return new BadRequestObjectResult("Enter valid date in \"dd-MM-yyyy\" format");
+                return new BadRequestObjectResult("Enter valid start date in \"dd-MM-yyyy\" format");
             }
         }
 
@@ -162,12 +169,12 @@ namespace FxFunctions
                                                                      out DateTime parsedEndDate);
             if (startDateParsedSuccessfully && endDateParsedSuccessfully)
             {
-                _updater.UpdateRates(parsedStartDate, parsedEndDate);
+                await _updater.UpdateRatesAsync(parsedStartDate, parsedEndDate);
                 return new OkObjectResult($"Rates starting from {startDate} loaded");
             }
             else
             {
-                return new BadRequestObjectResult("Enter valid date in \"dd-MM-yyyy\" format");
+                return new BadRequestObjectResult("Enter valid start and end dates in \"dd-MM-yyyy\" format");
             }
         }
 
@@ -175,7 +182,7 @@ namespace FxFunctions
         public async Task<IActionResult> RemoveAllRates([HttpTrigger(AuthorizationLevel.Admin, "get", Route = "remove/all")] HttpRequest req,
                                                                         ILogger logger)
         {
-            _dailyFxRepo.DeleteAll();
+            await _dailyFxRepo.DeleteAllAsync();
             return new OkObjectResult($"All rates removed from DB");
         }
     }

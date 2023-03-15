@@ -16,46 +16,47 @@ namespace FxCore.Services
             _dailyFXCollection = database.GetCollection<DailyFx>("DailyFX");
         }
 
-        public bool Any(DateTime date)
+        public async Task<bool> AnyAsync(DateTime date)
         {
             var filter = Builders<DailyFx>.Filter.Eq("Date", date.ToString());
 
-            return _dailyFXCollection.Find(filter).Any();
+            return await _dailyFXCollection.Find(filter).AnyAsync();
         }
 
-        public List<DailyFx> GetAll()
+        public async Task<List<DailyFx>> GetAllAsync()
         {
-            return _dailyFXCollection.Find(new BsonDocument()).ToList();
+            return await _dailyFXCollection.Find(new BsonDocument()).ToListAsync();
         }
 
-        public DailyFx GetByDate(DateTime date)
+        public async Task<DailyFx?> GetByDateAsync(DateTime date)
         {
             var filter = Builders<DailyFx>.Filter.Eq("Date", date.ToString());
 
-            return  _dailyFXCollection.Find(filter).First();
+            var rates = _dailyFXCollection.Find(filter);
+            return await rates.AnyAsync() ? await rates.FirstAsync() : null;
         }
 
-        public DailyFx GetLatestDocument()
+        public async Task<DailyFx> GetLatestDocumentAsync()
         {
-            return _dailyFXCollection.AsQueryable().OrderByDescending(x => x.Date).First();
+            return await Task.Run(() => _dailyFXCollection.AsQueryable().OrderByDescending(x => x.Date).First());
         }
 
-        public void CreateOrUpdate(DailyFx document)
+        public async Task CreateOrUpdateAsync(DailyFx document)
         {
             var filter = Builders<DailyFx>.Filter.Eq("Date", document.Date.ToString());
-            var currentDoc = _dailyFXCollection.Find(filter);
+            var currentDoc = await _dailyFXCollection.Find(filter).ToListAsync();
 
             if (currentDoc.Any())
             {
                 document.Id = currentDoc.First().Id;
             }
 
-            _dailyFXCollection.ReplaceOne(filter, document, new ReplaceOptions() { IsUpsert = true });
+            await _dailyFXCollection.ReplaceOneAsync(filter, document, new ReplaceOptions() { IsUpsert = true });
         }
 
-        public void DeleteAll()
+        public async Task DeleteAllAsync()
         {
-            _dailyFXCollection.DeleteMany("{}");
+            await _dailyFXCollection.DeleteManyAsync("{}");
         }
     }
 }
