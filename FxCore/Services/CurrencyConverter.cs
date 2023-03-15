@@ -25,7 +25,15 @@ namespace FxCore.Services
                 throw new ArgumentException("Should be more than 0", nameof(amount));
             }
             
-            DailyFx rates = date != null ? _dailyFxRepo.GetByDate((DateTime)date) : _dailyFxRepo.GetLatestDocument();
+            DailyFx rates;
+            if (date != null)
+            {
+                rates = _dailyFxRepo.GetByDateAsync((DateTime)date).GetAwaiter().GetResult();
+            }
+            else
+            {
+                rates = _dailyFxRepo.GetLatestDocumentAsync().GetAwaiter().GetResult();
+            }
 
             decimal rate = from == rates.Base
                 ? rates.Rates.First(x => x.Code == to).Value
