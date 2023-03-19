@@ -1,16 +1,13 @@
-using System;
-using System.Globalization;
-using System.IO;
-using System.Threading.Tasks;
 using FxCore.Models;
 using FxCore.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
-using Microsoft.Azure.WebJobs.Host;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
+using System;
+using System.Globalization;
+using System.Threading.Tasks;
 
 namespace FxFunctions
 {
@@ -30,7 +27,7 @@ namespace FxFunctions
         }
 
         [FunctionName("DailyUpdater")]
-        public async Task DailyUpdater([TimerTrigger("%DevCronExpression%")] TimerInfo myTimer, ILogger logger) //prod "0 13,19 * * 1-5"  dev "*/300 * * * * *" 
+        public async Task DailyUpdater([TimerTrigger("%DevCronExpression%")] TimerInfo myTimer, ILogger logger) //prod "0 13,19 * * *"  dev "*/300 * * * * *" 
         {
             var cbarRates = await _cbarService.GetRates(DateOnly.FromDateTime(DateTime.Now));
 
@@ -50,7 +47,6 @@ namespace FxFunctions
             }
             else
             {
-                logger.LogInformation($"No rates for today");
                 await _dailyFxRepo.CreateOrUpdateAsync(cbarRates);
                 logger.LogInformation($"Updating rates...");
             }
@@ -62,7 +58,8 @@ namespace FxFunctions
         public async Task<ActionResult<DailyFx>> GetLatestRates([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "get/latest")] HttpRequest req,
                                                                ILogger logger)
         {
-            return await _dailyFxRepo.GetLatestDocumentAsync();
+            return await _dailyFxRepo.GetLatestDocumentAsync()
+                   ?? new ActionResult<DailyFx>(new NotFoundObjectResult($"Rates not found"));
         }
 
         [FunctionName("GetRatesToDate")]
@@ -72,7 +69,8 @@ namespace FxFunctions
         {
             if (DateTime.TryParseExact(date, "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime parsedDate))
             {
-                return await _dailyFxRepo.GetByDateAsync(parsedDate) ?? new ActionResult<DailyFx>(new NotFoundObjectResult($"Rates for {parsedDate.Date} not found"));
+                return await _dailyFxRepo.GetByDateAsync(parsedDate)
+                       ?? new ActionResult<DailyFx>(new NotFoundObjectResult($"Rates for {parsedDate.Date} not found"));
             }
             else
             {
@@ -86,16 +84,8 @@ namespace FxFunctions
         {
             string from = req.Query["from"];
             string to = req.Query["to"];
-            var amountIsParsedSuccessfully = decimal.TryParse(req.Query["amount"],
-                                                              NumberStyles.AllowDecimalPoint,
-                                                              CultureInfo.InvariantCulture,
-                                                              out decimal parsedAmount);
-
-            var dateIsParsedSuccessfully = DateTime.TryParseExact(req.Query["date"],
-                                                                  "dd-MM-yyyy",
-                                                                  CultureInfo.InvariantCulture,
-                                                                  DateTimeStyles.None,
-                                                                  out DateTime parsedDate);
+            var amountIsParsedSuccessfully = decimal.TryParse(req.Query["amount"], NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out decimal parsedAmount);
+            var dateIsParsedSuccessfully = DateTime.TryParseExact(req.Query["date"], "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime parsedDate);
 
             if (dateIsParsedSuccessfully)
             {
@@ -135,15 +125,20 @@ namespace FxFunctions
                                                                          string startDate,
                                                                          ILogger logger)
         {
-            var startDateParsedSuccessfully = DateTime.TryParseExact(startDate,
-                                                                     "dd-MM-yyyy",
-                                                                     CultureInfo.InvariantCulture,
-                                                                     DateTimeStyles.None,
-                                                                     out DateTime parsedStartDate);
+            var startDateParsedSuccessfully = DateTime.TryParseExact(startDate, "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime parsedStartDate);
+            
             if (startDateParsedSuccessfully)
             {
-                await _updater.UpdateRatesAsync(parsedStartDate);
-                return new OkObjectResult($"Rates starting from {startDate} loaded");
+                try
+                {
+                    await _updater.UpdateRatesAsync(parsedStartDate);
+                }
+                catch (ArgumentException ex)
+                {
+                    return new BadRequestObjectResult(ex.Message);
+                }
+
+                return new OkObjectResult($"Rates from {startDate} are loading...");
             }
             else
             {
@@ -157,20 +152,20 @@ namespace FxFunctions
                                                                          string endDate,
                                                                          ILogger logger)
         {
-            var startDateParsedSuccessfully = DateTime.TryParseExact(startDate,
-                                                                     "dd-MM-yyyy",
-                                                                     CultureInfo.InvariantCulture,
-                                                                     DateTimeStyles.None,
-                                                                     out DateTime parsedStartDate);
-            var endDateParsedSuccessfully = DateTime.TryParseExact(endDate,
-                                                                     "dd-MM-yyyy",
-                                                                     CultureInfo.InvariantCulture,
-                                                                     DateTimeStyles.None,
-                                                                     out DateTime parsedEndDate);
+            var startDateParsedSuccessfully = DateTime.TryParseExact(startDate, "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime parsedStartDate);
+            var endDateParsedSuccessfully = DateTime.TryParseExact(endDate, "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime parsedEndDate);
+
             if (startDateParsedSuccessfully && endDateParsedSuccessfully)
             {
-                await _updater.UpdateRatesAsync(parsedStartDate, parsedEndDate);
-                return new OkObjectResult($"Rates starting from {startDate} loaded");
+                try
+                {
+                    await _updater.UpdateRatesAsync(parsedStartDate, parsedEndDate);
+                }
+                catch (ArgumentException ex)
+                {
+                    return new BadRequestObjectResult(ex.Message);
+                }
+                return new OkObjectResult($"Rates from {startDate} to {endDate} are loading");
             }
             else
             {
