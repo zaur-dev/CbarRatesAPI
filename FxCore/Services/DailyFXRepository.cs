@@ -30,10 +30,33 @@ namespace FxCore.Services
 
         public async Task<DailyFx?> GetByDateAsync(DateTime date)
         {
-            var filter = Builders<DailyFx>.Filter.Eq("Date", date.ToString());
+            //var dateFilter = Builders<DailyFx>.Filter.Eq("Date", date.ToString());
+            //var rates = await  _dailyFXCollection.Find(dateFilter).FirstAsync();
 
-            var rates = _dailyFXCollection.Find(filter);
-            return await rates.AnyAsync() ? await rates.FirstAsync() : null;
+            //var olderDateFilter = Builders<DailyFx>.Filter.Lte("Date", date.AddDays(-1).ToString());
+            //var olderRateslist = await _dailyFXCollection.Find(olderDateFilter).ToListAsync();
+            //var prevDayRates = olderRateslist.OrderByDescending(x => x.Date).First(x => x.Date == x.CbarDate && x.CbarDate == rates.CbarDate.AddDays(-1)) ;
+
+            var rates = await Task.Run(() => _dailyFXCollection.AsQueryable().First(x => x.Date == date));
+
+            var prevDayRates = await Task.Run(() => _dailyFXCollection.AsQueryable()
+                                                                      .Where(x => x.Date <= date.AddDays(-1))
+                                                                      .OrderByDescending(x => x.Date)
+                                                                      .First(x => x.Date == x.CbarDate && x.CbarDate == rates.CbarDate.AddDays(-1)));
+
+            if (rates != null)
+            {
+                foreach (var item in rates.Rates)
+                {
+                    var prevVal = prevDayRates.Rates.First(r => r.Code == item.Code).Value;
+                    item.Difference = item.Value - prevVal;
+                }
+                return rates;
+            }
+            else
+            {
+                return null;
+            }
         }
 
         public async Task<DailyFx> GetLatestDocumentAsync()
