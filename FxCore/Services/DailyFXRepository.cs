@@ -30,14 +30,19 @@ namespace FxCore.Services
 
         public async Task<DailyFx?> GetByDateAsync(DateTime date)
         {
-            var dateFilter = Builders<DailyFx>.Filter.Eq("Date", date.ToString());
-            var rates = await  _dailyFXCollection.Find(dateFilter).FirstAsync();
+            //var dateFilter = Builders<DailyFx>.Filter.Eq("Date", date.ToString());
+            //var rates = await  _dailyFXCollection.Find(dateFilter).FirstAsync();
 
-            //var prevDayFilter = rates.Date == rates.CbarDate ? Builders<DailyFx>.Filter.Lte("CbarDate", date.AddDays(-1).ToString()) : Builders<DailyFx>.Filter.Lt("Date", date.ToString());
-            var olderDateFilter = Builders<DailyFx>.Filter.Lte("Date", date.AddDays(-1).ToString());
-            var olderRateslist = await _dailyFXCollection.Find(olderDateFilter).ToListAsync();
+            //var olderDateFilter = Builders<DailyFx>.Filter.Lte("Date", date.AddDays(-1).ToString());
+            //var olderRateslist = await _dailyFXCollection.Find(olderDateFilter).ToListAsync();
+            //var prevDayRates = olderRateslist.OrderByDescending(x => x.Date).First(x => x.Date == x.CbarDate && x.CbarDate == rates.CbarDate.AddDays(-1)) ;
 
-            var prevDayRates = olderRateslist.OrderByDescending(x => x.Date).First(x => x.Date == x.CbarDate && x.CbarDate == rates.CbarDate.AddDays(-1)) ;
+            var rates = await Task.Run(() => _dailyFXCollection.AsQueryable().First(x => x.Date == date));
+
+            var prevDayRates = await Task.Run(() => _dailyFXCollection.AsQueryable()
+                                                                      .Where(x => x.Date <= date.AddDays(-1))
+                                                                      .OrderByDescending(x => x.Date)
+                                                                      .First(x => x.Date == x.CbarDate && x.CbarDate == rates.CbarDate.AddDays(-1)));
 
             if (rates != null)
             {
@@ -52,8 +57,6 @@ namespace FxCore.Services
             {
                 return null;
             }
-
-            //return await rates.AnyAsync() ? await rates.FirstAsync() : null;
         }
 
         public async Task<DailyFx> GetLatestDocumentAsync()
