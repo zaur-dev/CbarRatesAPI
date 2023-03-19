@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using FxCore.Models;
+using Microsoft.Extensions.Logging;
 
 namespace FxCore.Services
 {
@@ -18,11 +19,17 @@ namespace FxCore.Services
         public async Task UpdateRatesAsync()
         {
             var latestDoc = await _dailyFxRepo.GetLatestDocumentAsync();
-
-            if (latestDoc.Date.Date < DateTime.Now.Date)
+            if (latestDoc != null)
             {
-                await GetRatesAndSaveToDbAsync(latestDoc.Date.AddDays(1));
-                await UpdateRatesAsync();
+                while (latestDoc.Date.Date < DateTime.Now.Date)
+                {
+                    GetRatesAndSaveToDbAsync(latestDoc.Date.AddDays(1));
+                    latestDoc = await _dailyFxRepo.GetLatestDocumentAsync();
+                }
+            }
+            else
+            {
+                throw new Exception("DB is empty");
             }
         }
 
@@ -30,14 +37,14 @@ namespace FxCore.Services
         {
             if (startDate.Date > DateTime.Now.Date)
             {
-                throw new Exception("\"startDate\" cannot be in future");
+                throw new ArgumentException("\"startDate\" cannot be in future");
             }
             else
             {
-                await GetRatesAndSaveToDbAsync(startDate.Date);
-                if (startDate.Date < DateTime.Now.Date)
+                while (startDate.Date < DateTime.Now.Date)
                 {
-                    await UpdateRatesAsync(startDate.Date.AddDays(1));
+                    GetRatesAndSaveToDbAsync(startDate.Date);
+                    startDate = startDate.AddDays(1);
                 }
             }
         }
@@ -46,16 +53,18 @@ namespace FxCore.Services
         {
             if (startDate.Date > endDate.Date)
             {
-                throw new Exception("\"endDate\" cannot be earlier than \"starDate\"");
+                throw new ArgumentException("\"endDate\" cannot be earlier than \"starDate\"");
             }
             else
             {
-                await GetRatesAndSaveToDbAsync(startDate.Date);
-                if (startDate.Date < endDate.Date)
+                while (startDate.Date < endDate.Date)
                 {
-                    await UpdateRatesAsync(startDate.Date.AddDays(1), endDate);
+                    GetRatesAndSaveToDbAsync(startDate.Date);
+                    startDate = startDate.AddDays(1);
                 }
             }
+
+
         }
 
         private async Task GetRatesAndSaveToDbAsync(DateTime date)
@@ -69,6 +78,6 @@ namespace FxCore.Services
             {
                 _logger.LogInformation($"Already have rates for {date.Date}");
             }
-        }       
+        }
     }
 }
