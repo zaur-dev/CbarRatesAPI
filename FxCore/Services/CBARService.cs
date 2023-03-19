@@ -69,6 +69,7 @@ namespace FxCore.Services
             {
                 Code = currency.Code,
                 Nominal = int.Parse(currency.Nominal),
+                Name = currency.Name,
                 Value = currency.Value
             }));
             return dailyFx;
