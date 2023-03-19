@@ -25,5 +25,6 @@ namespace FxCore.Models
         public int Nominal { get; set; }
         public string Name { get; set; }
         public decimal Value { get; set; }
+        public decimal Difference { get; set; }
     }
 }
