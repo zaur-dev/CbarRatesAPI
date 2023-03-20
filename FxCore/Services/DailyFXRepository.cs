@@ -59,9 +59,27 @@ namespace FxCore.Services
             }
         }
 
-        public async Task<DailyFx> GetLatestDocumentAsync()
+        public async Task<DailyFx?> GetLatestDocumentAsync()
         {
-            return await Task.Run(() => _dailyFXCollection.AsQueryable().OrderByDescending(x => x.Date).First());
+            var latest = await Task.Run(() => _dailyFXCollection.AsQueryable().OrderByDescending(x => x.Date).First());
+            
+            var prevDayRates = await Task.Run(() => _dailyFXCollection.AsQueryable()
+                                                                      .Where(x => x.Date <= latest.Date.AddDays(-1))
+                                                                      .OrderByDescending(x => x.Date)
+                                                                      .First(x => x.Date == x.CbarDate && x.CbarDate <= latest.CbarDate.AddDays(-1)));
+            if (latest != null)
+            {
+                foreach (var item in latest.Rates)
+                {
+                    var prevVal = prevDayRates.Rates.First(r => r.Code == item.Code).Value;
+                    item.Difference = item.Value - prevVal;
+                }
+                return latest;
+            }
+            else
+            {
+                return null;
+            }        
         }
 
         public async Task CreateOrUpdateAsync(DailyFx document)
