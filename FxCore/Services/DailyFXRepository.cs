@@ -42,7 +42,7 @@ namespace FxCore.Services
             var prevDayRates = await Task.Run(() => _dailyFXCollection.AsQueryable()
                                                                       .Where(x => x.Date <= date.AddDays(-1))
                                                                       .OrderByDescending(x => x.Date)
-                                                                      .First(x => x.Date == x.CbarDate && x.CbarDate == rates.CbarDate.AddDays(-1)));
+                                                                      .First(x => x.Date == x.CbarDate && x.CbarDate <= rates.CbarDate.AddDays(-1)));
 
             if (rates != null)
             {
