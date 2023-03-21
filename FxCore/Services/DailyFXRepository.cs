@@ -28,6 +28,19 @@ namespace FxCore.Services
             return await _dailyFXCollection.Find(new BsonDocument()).ToListAsync();
         }
 
+        public async Task<List<DailyFx>> GetRange(DateTime start, DateTime end)
+        {
+            List<DailyFx> rates;
+            try
+            {
+               return rates = await Task.Run(() => _dailyFXCollection.AsQueryable().Where(x=>x.Date >= start && x.Date <= end).ToList());
+            }
+            catch (InvalidOperationException)
+            {
+                return null;
+            }
+        }
+
         public async Task<DailyFx?> GetByDateAsync(DateTime date)
         {
             //var dateFilter = Builders<DailyFx>.Filter.Eq("Date", date.ToString());
@@ -41,7 +54,7 @@ namespace FxCore.Services
             {
                 rates = await Task.Run(() => _dailyFXCollection.AsQueryable().First(x => x.Date == date));
             }
-            catch (InvalidOperationException ex)
+            catch (InvalidOperationException)
             {
                 return null;
             }
