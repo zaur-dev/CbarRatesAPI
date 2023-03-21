@@ -1,13 +1,11 @@
 using FxCore.Models;
 using FxCore.Services;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.JsonPatch.Internal;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.Threading.Tasks;
 
@@ -80,25 +78,6 @@ namespace FxFunctions
             }
         }
 
-        [FunctionName("GetRatesToDateRange")]
-        public async Task<ActionResult<List<DailyFx>>> GetRatesToDateRange([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "get/range/{startDate}/{endDate}")] HttpRequest req,
-                                                              string startDate,
-                                                              string endDate,
-                                                              ILogger logger)
-        {
-            var startDateParsedSuccessfully = DateTime.TryParseExact(startDate, "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime parsedStartDate);
-            var endDateParsedSuccessfully = DateTime.TryParseExact(endDate, "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime parsedEndDate);
-            if (startDateParsedSuccessfully && endDateParsedSuccessfully)
-            {
-                return await _dailyFxRepo.GetRange(parsedStartDate, parsedEndDate);
-            }
-            else
-            {
-                return new BadRequestObjectResult("Enter valid start and end dates in \"dd-MM-yyyy\" format");
-            }
-        }
-
-
         [FunctionName("Convert")]
         public async Task<ActionResult<CurrencyConverterResult>> Convert([HttpTrigger(AuthorizationLevel.Function, "get", Route = "convert")] HttpRequest req,
                                                                          ILogger logger)
@@ -147,7 +126,7 @@ namespace FxFunctions
                                                                          ILogger logger)
         {
             var startDateParsedSuccessfully = DateTime.TryParseExact(startDate, "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime parsedStartDate);
-
+            
             if (startDateParsedSuccessfully)
             {
                 try
@@ -173,7 +152,6 @@ namespace FxFunctions
                                                                          string endDate,
                                                                          ILogger logger)
         {
-            //TODO check if startdate later than end date
             var startDateParsedSuccessfully = DateTime.TryParseExact(startDate, "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime parsedStartDate);
             var endDateParsedSuccessfully = DateTime.TryParseExact(endDate, "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime parsedEndDate);
 
