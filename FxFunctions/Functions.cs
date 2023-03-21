@@ -85,7 +85,7 @@ namespace FxFunctions
                                                               string startDate,
                                                               string endDate,
                                                               ILogger logger)
-        {
+        {   //TODO check if start date greater than end date 
             var startDateParsedSuccessfully = DateTime.TryParseExact(startDate, "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime parsedStartDate);
             var endDateParsedSuccessfully = DateTime.TryParseExact(endDate, "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime parsedEndDate);
             if (startDateParsedSuccessfully && endDateParsedSuccessfully)
