@@ -78,6 +78,26 @@ namespace FxFunctions
             }
         }
 
+
+        [FunctionName("GetRatesToDateRange")]
+        public async Task<ActionResult<List<DailyFx>>> GetRatesToDateRange([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "get/range/{startDate}/{endDate}")] HttpRequest req,
+                                                              string startDate,
+                                                              string endDate,
+                                                              ILogger logger)
+        {   //TODO check if start date greater than end date 
+            var startDateParsedSuccessfully = DateTime.TryParseExact(startDate, "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime parsedStartDate);
+            var endDateParsedSuccessfully = DateTime.TryParseExact(endDate, "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime parsedEndDate);
+            if (startDateParsedSuccessfully && endDateParsedSuccessfully)
+            {
+                return await _dailyFxRepo.GetRange(parsedStartDate, parsedEndDate);
+            }
+            else
+            {
+                return new BadRequestObjectResult("Enter valid start and end dates in \"dd-MM-yyyy\" format");
+            }
+        }
+
+
         [FunctionName("Convert")]
         public async Task<ActionResult<CurrencyConverterResult>> Convert([HttpTrigger(AuthorizationLevel.Function, "get", Route = "convert")] HttpRequest req,
                                                                          ILogger logger)
