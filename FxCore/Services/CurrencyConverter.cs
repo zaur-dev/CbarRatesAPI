@@ -11,7 +11,6 @@ namespace FxCore.Services
             _dailyFxRepo = dailyFxRepo;
         }
 
-        // TODO nominal
         // TODO add info about query
         public CurrencyConverterResult ConvertAsync(string from, string to, decimal amount, DateTime? date)
         {
@@ -37,7 +36,7 @@ namespace FxCore.Services
 
             decimal rate = from == rates.Base
                 ? rates.Rates.First(x => x.Code == to).Value
-                : rates.Rates.First(x => x.Code == from).Value / rates.Rates.First(x => x.Code == to).Value;
+                : (rates.Rates.First(x => x.Code == from).Value / rates.Rates.First(x => x.Code == from).Nominal) / (rates.Rates.First(x => x.Code == to).Value / rates.Rates.First(x => x.Code == to).Nominal);
 
             return new CurrencyConverterResult
             {
